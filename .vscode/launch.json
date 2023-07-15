@@ -5,16 +5,45 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "visualize lego",
+            "name": "compare trajectories",
+            "type": "python",
+            "request": "launch",
+            "program": "compare_trajectories.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--reference-trajectory-path",
+                "output/colmap/transforms.json",
+                "--data-trajectory-path",
+                "output/transforms.json"
+            ]
+        },
+        {
+            "name": "extract lk optical flow",
+            "type": "python",
+            "request": "launch",
+            "program": "optical_flow_estimation.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "nerfstudio-data",
+                "--data",
+                "output/transforms.json"
+            ]
+        },
+        {
+            "name": "visualize data",
             "type": "python",
             "request": "launch",
             "program": "camera_pose_visualizer.py",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "blender-data",
+                "--selected-frames", "1",
+                "--show-image",
+                "nerfstudio-data",
                 "--data",
-                "lego"
+                "output/transforms.json"
             ]
         }
     ]
