@@ -10,6 +10,8 @@ from torchvision import transforms
 from PIL import Image
 from nerfstudio.utils.rich_utils import CONSOLE
 
+import transforms3d
+
 
 @dataclass
 class VisConfig(InstantiateConfig):
@@ -27,6 +29,8 @@ class VisConfig(InstantiateConfig):
     """selected frame ids to visualize"""
     show_image: bool = False
     """whether to show the image in the visualization"""
+    show_boxes: bool = False
+    """whether to show object boxes in the visualization"""
 
 
 @dataclass
@@ -39,6 +43,85 @@ class Runner:
         self.datamanager = self.config.datamanager.setup()
         self.cameras = self.datamanager.train_dataparser_outputs.cameras
         self.image_filenames = self.datamanager.train_dataparser_outputs.image_filenames
+
+    def cuboid_to_3d_points(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        yaw_angle: float,
+        length: float,
+        height: float,
+        width: float,
+    ):
+        yaw = yaw_angle
+        x = x
+        y = y
+        z = z
+        translation = np.array([[x, y, z]]).T
+        # TODO Pierre, be carreful depend on axis UP in global referential (kitti actual version: Y)
+        dimension_x = length
+        dimension_y = height
+        dimension_z = width
+        Tr = transforms3d.euler.euler2mat(0, yaw, 0)
+
+        p0 = (
+            Tr @ np.array([[dimension_x / 2, dimension_y / 2, dimension_z / 2]]).T
+            + translation
+        )
+
+        p1 = (
+            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, dimension_z / 2]]).T
+            + translation
+        )
+
+        p2 = (
+            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, dimension_z / 2]]).T
+            + translation
+        )
+
+        p3 = (
+            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, dimension_z / 2]]).T
+            + translation
+        )
+
+        p4 = (
+            Tr @ np.array([[dimension_x / 2, dimension_y / 2, -dimension_z / 2]]).T
+            + translation
+        )
+
+        p5 = (
+            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, -dimension_z / 2]]).T
+            + translation
+        )
+
+        p6 = (
+            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, -dimension_z / 2]]).T
+            + translation
+        )
+
+        p7 = (
+            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, -dimension_z / 2]]).T
+            + translation
+        )
+
+        pts = np.hstack((p0, p1, p2, p3, p4, p5, p6, p7)).T
+
+        return pts
+
+    def plot_cuboid(
+        self, ax, point3d: np.ndarray, label: bool = None, tracking_id: bool = None
+    ):
+        point_order_to_plot = np.array([0, 1, 2, 3, 0, 4, 5, 6, 7, 4, 5, 1, 2, 6, 7, 3])
+        ax.plot(
+            point3d[point_order_to_plot, 0],
+            point3d[point_order_to_plot, 1],
+            point3d[point_order_to_plot, 2],
+        )
+        if label:
+            ax.text(point3d[0, 0], point3d[0, 1], point3d[0, 2], label)
+        if tracking_id:
+            ax.text(point3d[1, 0], point3d[1, 1], point3d[0, 2], tracking_id)
 
     def vis(self) -> None:
         camera_poses = self.cameras.camera_to_worlds
@@ -55,10 +138,56 @@ class Runner:
         # loop over camera poses and plot camera coordinate systems
         for i, camera_pose in enumerate(camera_poses):
             sample = np.random.rand()
-            if sample < self.config.skip_probability or (self.config.selected_frames is not None and i not in self.config.selected_frames) and self.config.show_image:
+            if (
+                sample < self.config.skip_probability
+                or (
+                    self.config.selected_frames is not None
+                    and i not in self.config.selected_frames
+                )
+                and self.config.show_image
+            ):
                 skipped.append(i)
                 continue
+            # [n_frames, n_max_objects, [x,y,z,yaw_angle,track_id, 0]]
+            # self.datamanager.train_dataset.metadata['obj_info'][0,0,0,:,:]
+            if self.config.show_boxes and (
+                "obj_info" not in self.datamanager.train_dataset.metadata
+                or "obj_metadata" not in self.datamanager.train_dataset.metadata
+            ):
+                self.config.show_boxes = False
+                print("No object metadata found in this dataset")
 
+            if self.config.show_boxes:
+                object_boxes = self.datamanager.train_dataset.metadata["obj_info"][
+                    i, 0, 0, :, :
+                ]
+                object_boxes = object_boxes.reshape(
+                    object_boxes.shape[0] // 2, object_boxes.shape[1] * 2
+                )
+                all_boxes_corners = []
+                for object_box in object_boxes:
+                    if object_box[0] == -1:
+                        continue
+                    x, y, z, yaw_angle, track_id_line, _ = object_box
+                    (
+                        object_id,
+                        length,
+                        height,
+                        width,
+                        class_id,
+                    ) = self.datamanager.train_dataset.metadata["obj_metadata"][
+                        int(track_id_line)
+                    ]
+                    ax.plot([object_box[0]], [object_box[1]], [object_box[2]], "x")
+                    box_corners = self.cuboid_to_3d_points(
+                        x, y, z, yaw_angle, length, height, width
+                    )
+
+                    self.plot_cuboid(ax, box_corners)
+                    all_boxes_corners.append(box_corners)
+                all_boxes_corners = np.concatenate(all_boxes_corners)
+                min_pos_boxes = np.min(all_boxes_corners[:, :3])
+                max_pos_boxes = np.max(all_boxes_corners[:, :3])
             # extract camera position and orientation
             camera_position = camera_pose[:3, 3]
             camera_orientation = camera_pose[:3, :3]
@@ -138,14 +267,17 @@ class Runner:
                 color="black",
                 fontsize=10,
             )
-        
-        max_pos = max_pos.max() * 1.1
-        min_pos = min_pos.min() * 0.9
-        
+        if self.config.show_boxes:
+            max_pos = np.max([max_pos.max(), max_pos_boxes]) * 1.1
+            min_pos = np.min([min_pos.min(), min_pos_boxes]) * 0.9
+        else:
+            max_pos = max_pos.max() * 1.1
+            min_pos = min_pos.min() * 0.9
+
         # plot world coordinate axes
-        ax.plot([0, max_pos], [0, 0], [0, 0], color="r")
-        ax.plot([0, 0], [0, max_pos], [0, 0], color="g")
-        ax.plot([0, 0], [0, 0], [0, max_pos], color="b")
+        ax.plot([0, 1], [0, 0], [0, 0], color="r")
+        ax.plot([0, 0], [0, 1], [0, 0], color="g")
+        ax.plot([0, 0], [0, 0], [0, 1], color="b")
 
         # set axis labels
         ax.set_xlabel("X")
