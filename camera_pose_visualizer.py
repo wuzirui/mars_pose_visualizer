@@ -32,7 +32,7 @@ class VisConfig(InstantiateConfig):
     show_boxes: bool = False
     """whether to show object boxes in the visualization"""
     up_axis: Literal["y", "z"] = "y"
-
+    """On which axis apply object orientation yaw"""
 
 @dataclass
 class Runner:
