@@ -4,7 +4,7 @@ import tyro
 from nerfstudio.configs.base_config import InstantiateConfig
 from nerfstudio.data.datamanagers.base_datamanager import VanillaDataManagerConfig
 from dataclasses import dataclass, field
-from typing import Type, Tuple, Optional, List, Dict
+from typing import Type, Tuple, Optional, List, Dict, Literal
 import torch
 from torchvision import transforms
 from PIL import Image
@@ -31,6 +31,7 @@ class VisConfig(InstantiateConfig):
     """whether to show the image in the visualization"""
     show_boxes: bool = False
     """whether to show object boxes in the visualization"""
+    up_axis: Literal["y", "z"] = "y"
 
 
 @dataclass
@@ -59,11 +60,17 @@ class Runner:
         y = y
         z = z
         translation = np.array([[x, y, z]]).T
-        # TODO Pierre, be carreful depend on axis UP in global referential (kitti actual version: Y)
-        dimension_x = length
-        dimension_y = height
-        dimension_z = width
-        Tr = transforms3d.euler.euler2mat(0, yaw, 0)
+        # TODO Pierre, be carreful depend on axis UP in global referential (kitti actual version: Y, pandaset Z)
+        if self.config.up_axis == "z":
+            dimension_x = length
+            dimension_y = width
+            dimension_z = height
+            Tr = transforms3d.euler.euler2mat(0, 0, yaw)
+        else:  # y
+            dimension_x = length
+            dimension_y = height
+            dimension_z = width
+            Tr = transforms3d.euler.euler2mat(0, yaw, 0)
 
         p0 = (
             Tr @ np.array([[dimension_x / 2, dimension_y / 2, dimension_z / 2]]).T
@@ -136,6 +143,7 @@ class Runner:
 
         skipped = []
         # loop over camera poses and plot camera coordinate systems
+        all_boxes_corners = []
         for i, camera_pose in enumerate(camera_poses):
             sample = np.random.rand()
             if (
@@ -164,7 +172,7 @@ class Runner:
                 object_boxes = object_boxes.reshape(
                     object_boxes.shape[0] // 2, object_boxes.shape[1] * 2
                 )
-                all_boxes_corners = []
+
                 for object_box in object_boxes:
                     if object_box[0] == -1:
                         continue
@@ -182,12 +190,10 @@ class Runner:
                     box_corners = self.cuboid_to_3d_points(
                         x, y, z, yaw_angle, length, height, width
                     )
-
+                    
                     self.plot_cuboid(ax, box_corners)
-                    all_boxes_corners.append(box_corners)
-                all_boxes_corners = np.concatenate(all_boxes_corners)
-                min_pos_boxes = np.min(all_boxes_corners[:, :3])
-                max_pos_boxes = np.max(all_boxes_corners[:, :3])
+            
+
             # extract camera position and orientation
             camera_position = camera_pose[:3, 3]
             camera_orientation = camera_pose[:3, :3]
@@ -267,6 +273,14 @@ class Runner:
                 color="black",
                 fontsize=10,
             )
+        all_boxes_corners.append(box_corners)
+        if len(all_boxes_corners) > 0:
+            all_boxes_corners = np.concatenate(all_boxes_corners)
+            min_pos_boxes = np.min(all_boxes_corners[:, :3])
+            max_pos_boxes = np.max(all_boxes_corners[:, :3])
+        else:
+            self.config.show_boxes = False
+            print("no object found")
         if self.config.show_boxes:
             max_pos = np.max([max_pos.max(), max_pos_boxes]) * 1.1
             min_pos = np.min([min_pos.min(), min_pos_boxes]) * 0.9

@@ -58,10 +58,28 @@
             "args": [
                 "--selected-frames", "1",
                 "--show-image",
-                "--show-boxes"
+                "--show-boxes",
                 "KittiData",
-                "--data"
+                "--data",
                 "/home/pierre.merriaux/data/kitti-MOT/training/image_02/0006/"
+            ]
+        }
+        ,
+        {
+            "name": "visualize data Pandaset + boxes",
+            "type": "python",
+            "request": "launch",
+            "program": "camera_pose_visualizer.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--selected-frames", "1",
+                "--show-image",
+                "--show-boxes",
+                "--up-axis", "z",
+                "PandasetData",
+                "--data",
+                "/home/pierre.merriaux/data/pandaset"
             ]
         }
     ]
