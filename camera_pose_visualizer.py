@@ -71,44 +71,44 @@ class Runner:
             dimension_y = height
             dimension_z = width
             Tr = transforms3d.euler.euler2mat(0, yaw, 0)
-
+        # compatible with kitti convention, cuboid position to box bottow center
         p0 = (
-            Tr @ np.array([[dimension_x / 2, dimension_y / 2, dimension_z / 2]]).T
+            Tr @ np.array([[dimension_x / 2, dimension_y / 2, dimension_z]]).T
             + translation
         )
 
         p1 = (
-            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, dimension_z / 2]]).T
+            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, dimension_z]]).T
             + translation
         )
 
         p2 = (
-            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, dimension_z / 2]]).T
+            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, dimension_z]]).T
             + translation
         )
 
         p3 = (
-            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, dimension_z / 2]]).T
+            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, dimension_z]]).T
             + translation
         )
 
         p4 = (
-            Tr @ np.array([[dimension_x / 2, dimension_y / 2, -dimension_z / 2]]).T
+            Tr @ np.array([[dimension_x / 2, dimension_y / 2, 0]]).T
             + translation
         )
 
         p5 = (
-            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, -dimension_z / 2]]).T
+            Tr @ np.array([[-dimension_x / 2, dimension_y / 2, 0]]).T
             + translation
         )
 
         p6 = (
-            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, -dimension_z / 2]]).T
+            Tr @ np.array([[-dimension_x / 2, -dimension_y / 2, 0]]).T
             + translation
         )
 
         p7 = (
-            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, -dimension_z / 2]]).T
+            Tr @ np.array([[dimension_x / 2, -dimension_y / 2, 0]]).T
             + translation
         )
 
@@ -172,7 +172,7 @@ class Runner:
                 object_boxes = object_boxes.reshape(
                     object_boxes.shape[0] // 2, object_boxes.shape[1] * 2
                 )
-
+                keep_boxes = 0
                 for object_box in object_boxes:
                     if object_box[0] == -1:
                         continue
@@ -190,10 +190,12 @@ class Runner:
                     box_corners = self.cuboid_to_3d_points(
                         x, y, z, yaw_angle, length, height, width
                     )
+                    keep_boxes += 1
+                    print(f'{float(x):.2f}, {float(y):.2f}, {float(z):.2f}, {float(yaw_angle):.2f}, {float(length):.2f}, {float(height):.2f}, {float(width):.2f}')
                     
                     self.plot_cuboid(ax, box_corners)
             
-
+            print(f'frame:{i}, nb boxes: {keep_boxes}')
             # extract camera position and orientation
             camera_position = camera_pose[:3, 3]
             camera_orientation = camera_pose[:3, :3]

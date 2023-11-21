@@ -73,7 +73,7 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--selected-frames", "1",
+                "--selected-frames", "0",
                 "--show-image",
                 "--show-boxes",
                 "--up-axis", "z",
