@@ -39,11 +39,47 @@
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
+                //"--selected-frames", "1",
+                //"--show-image",
+                "nerfstudio-data",
+                //"--datamanager.dataparser.data",
+                "--data"
+                "/home/pierre.merriaux/data/nerf/output_pandaset_5front_depth_mask_new_flip_048/"
+            ]
+        }
+        ,
+        {
+            "name": "visualize data Kitti + boxes",
+            "type": "python",
+            "request": "launch",
+            "program": "camera_pose_visualizer.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
                 "--selected-frames", "1",
                 "--show-image",
-                "nerfstudio-data",
+                "--show-boxes",
+                "KittiData",
                 "--data",
-                "output/transforms.json"
+                "/home/pierre.merriaux/data/kitti-MOT/training/image_02/0006/"
+            ]
+        }
+        ,
+        {
+            "name": "visualize data Pandaset + boxes",
+            "type": "python",
+            "request": "launch",
+            "program": "camera_pose_visualizer.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "args": [
+                "--selected-frames", "0",
+                "--show-image",
+                "--show-boxes",
+                "--up-axis", "z",
+                "PandasetData",
+                "--data",
+                "/home/pierre.merriaux/data/pandaset"
             ]
         }
     ]
