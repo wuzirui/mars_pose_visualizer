@@ -173,7 +173,7 @@ class Runner:
                     object_boxes.shape[0] // 2, object_boxes.shape[1] * 2
                 )
                 keep_boxes = 0
-                for object_box in object_boxes:
+                for object_idx, object_box in enumerate(object_boxes):
                     if object_box[0] == -1:
                         continue
                     x, y, z, yaw_angle, track_id_line, _ = object_box
@@ -186,7 +186,9 @@ class Runner:
                     ) = self.datamanager.train_dataset.metadata["obj_metadata"][
                         int(track_id_line)
                     ]
+                    print(f'object ID:{int(object_id)}, class ID:{int(class_id)}, id_object:{object_idx}')
                     ax.plot([object_box[0]], [object_box[1]], [object_box[2]], "x")
+                    ax.text(object_box[0], object_box[1], object_box[2], f'ID:{int(object_id)} idx:{object_idx}')
                     box_corners = self.cuboid_to_3d_points(
                         x, y, z, yaw_angle, length, height, width
                     )
